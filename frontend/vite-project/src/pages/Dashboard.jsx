@@ -302,7 +302,7 @@ const Dashboard = () => {
 
                                     {data.dataCollected.map(
 
-                                        (item: string, index: number) => (
+                                        (item, index) => (
 
                                             <li
 
@@ -363,7 +363,7 @@ const Dashboard = () => {
 
                                     {data.sensitiveData.map(
 
-                                        (item: string, index: number) => (
+                                        (item, index) => (
 
                                             <li
 
@@ -419,7 +419,7 @@ const Dashboard = () => {
 
                                     {data.purposeOfCollection.map(
 
-                                        (item: string, index: number) => (
+                                        (item, index) => (
 
                                             <li
 
@@ -473,42 +473,19 @@ const Dashboard = () => {
 
                         <div className="mt-6 space-y-3">
 
-                            {data.thirdPartySharing?.length > 0 ? (
-
-                                <ul className="space-y-2">
-
-                                    {data.thirdPartySharing.map(
-
-                                        (item: string, index: number) => (
-
-                                            <li
-
-                                                key={index}
-
-                                                className="bg-slate-800 rounded-lg px-4 py-2"
-
-                                            >
-
-                                                • {item}
-
-                                            </li>
-
-                                        )
-
-                                    )}
-
-                                </ul>
-
-                            ) : (
-
-                                <p className="text-slate-400">
-
-                                    No Third Party Sharing Mentioned
-
-                                </p>
-
-                            )}
-
+                           {Array.isArray(data.thirdPartySharing) ? (
+    <ul className="space-y-2">
+        {data.thirdPartySharing.map((item, index) => (
+            <li key={index} className="bg-slate-800 rounded-lg px-4 py-2">
+                • {item}
+            </li>
+        ))}
+    </ul>
+) : (
+    <p className="text-slate-400">
+        {data.thirdPartySharing || "No Third Party Sharing Mentioned"}
+    </p>
+)}
                         </div>
 
                     </div>
@@ -564,7 +541,7 @@ const Dashboard = () => {
 
                                     {data.userRights.map(
 
-                                        (item: string, index: number) => (
+                                        (item, index) => (
 
                                             <li
                                                 key={index}
@@ -615,7 +592,7 @@ const Dashboard = () => {
 
                                     {data.legalBasis.map(
 
-                                        (item: string, index: number) => (
+                                        (item, index) => (
 
                                             <li
                                                 key={index}
@@ -671,7 +648,7 @@ const Dashboard = () => {
 
                                     {data.securityMeasures.map(
 
-                                        (item: string, index: number) => (
+                                        (item, index) => (
 
                                             <li
                                                 key={index}
@@ -722,7 +699,7 @@ const Dashboard = () => {
 
                                     {data.redFlags.map(
 
-                                        (item: string, index: number) => (
+                                        (item, index) => (
 
                                             <li
                                                 key={index}
@@ -774,7 +751,7 @@ const Dashboard = () => {
 
                                 {data.recommendations.map(
 
-                                    (item: string, index: number) => (
+                                    (item, index) => (
 
                                         <li
                                             key={index}

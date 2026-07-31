@@ -10,7 +10,7 @@ const API = axios.create({
 // =============================
 // Upload PDF
 // =============================
-export const uploadPDF = async (file: File) => {
+export const uploadPDF = async (file) => {
     const formData = new FormData();
 
     formData.append("file", file);
@@ -27,7 +27,7 @@ export const uploadPDF = async (file: File) => {
 // =============================
 // Chat with Uploaded Document
 // =============================
-export const askQuestion = async (question: string) => {
+export const askQuestion = async (question) => {
     const response = await API.post("/chat", {
         question,
     });

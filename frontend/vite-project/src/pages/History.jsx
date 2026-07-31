@@ -14,22 +14,12 @@ import {
 } from "lucide-react";
 import API from "../services/api";
 
-interface HistoryItem {
-    _id: string;
-    fileName: string;
-    documentType: string;
-    riskScore: number;
-    createdAt: string;
-    summary: string;
-    analysis: any;
-}
-
 const History = () => {
     const navigate = useNavigate();
-    const [history, setHistory] = useState<HistoryItem[]>([]);
+    const [history, setHistory] = useState([]);
     const [search, setSearch] = useState("");
     const [loading, setLoading] = useState(true);
-    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [deletingId, setDeletingId] = useState(null);
 
     useEffect(() => {
         fetchHistory();
@@ -39,7 +29,10 @@ const History = () => {
         try {
             setLoading(true);
             const res = await API.get("/history");
-            setHistory(res.data.history);
+
+console.log(res.data);
+
+setHistory(Array.isArray(res.data.history) ? res.data.history : []);
         } catch (error) {
             console.error(error);
         } finally {
@@ -47,7 +40,7 @@ const History = () => {
         }
     };
 
-    const deleteAnalysis = async (id: string) => {
+    const deleteAnalysis = async (id) => {
         try {
             setDeletingId(id);
             await API.delete(`/history/${id}`);
@@ -59,21 +52,25 @@ const History = () => {
         }
     };
 
-    const filteredHistory = useMemo(() => {
-        return history.filter(
-            (item) =>
-                item.fileName.toLowerCase().includes(search.toLowerCase()) ||
-                item.documentType.toLowerCase().includes(search.toLowerCase())
-        );
-    }, [history, search]);
+  const filteredHistory = useMemo(() => {
+    return (history || []).filter((item) => {
+        const fileName = item.fileName || "";
+        const documentType = item.documentType || "";
 
-    const riskColor = (score: number) => {
+        return (
+            fileName.toLowerCase().includes(search.toLowerCase()) ||
+            documentType.toLowerCase().includes(search.toLowerCase())
+        );
+    });
+}, [history, search]);
+
+    const riskColor = (score) => {
         if (score >= 70) return "text-red-400";
         if (score >= 40) return "text-yellow-400";
         return "text-green-400";
     };
 
-    const riskBarColor = (score: number) => {
+    const riskBarColor = (score) => {
         if (score >= 70) return "bg-red-500";
         if (score >= 40) return "bg-yellow-500";
         return "bg-green-500";
