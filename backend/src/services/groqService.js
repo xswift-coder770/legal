@@ -131,7 +131,7 @@ import groq from "../config/groq.js";
 
 const callGroq = async (
     prompt,
-    model = "llama-3.3-70b-versatile",
+    model = "openai/gpt-oss-120b",
     maxTokens = 1200,
     retries = 3
 ) => {
@@ -313,7 +313,7 @@ Return JSON only.
 
     return await callGroq(
         prompt,
-        "llama-3.3-70b-versatile",
+        "openai/gpt-oss-120b",
         1200
     );
 };
