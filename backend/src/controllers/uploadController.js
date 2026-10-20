@@ -170,7 +170,8 @@ export const uploadPDF = async (req, res) => {
         // Step 8: Prepare LLM Batches
         // ========================================
 
-        const allChunks = await getAllChunks(userId, docId);
+        const retrieved = await getAllChunks(userId, docId);
+        const allChunks = (retrieved && retrieved.length > 0) ? retrieved : chunks;
 
         const batchSize = 4;
         const batches   = [];

@@ -1,153 +1,153 @@
 import { getOrCreateCollection } from "../config/chroma.js";
 
 // ============================================
-// Store Embeddings in ChromaDB
+// In-Memory Fallback Cache (Resilience Layer)
+// Key: `${userId}_${docId}` -> { chunks, embeddings }
 // ============================================
+const memoryFallback = new Map();
 
 /**
- * Store text chunks + their embeddings in a user-scoped ChromaDB collection.
- * Skips storage if the collection already has documents (avoids re-embedding).
- *
- * @param {string[]} chunks     - Array of text chunks
- * @param {number[][]} embeddings - Parallel array of embedding vectors
- * @param {string} userId       - Authenticated user's MongoDB _id
- * @param {string} docId        - Analysis document _id (used to scope collection)
+ * Cosine Similarity calculation for fallback vector search
  */
-export const storeEmbeddings = async (chunks, embeddings, userId, docId) => {
+const cosineSimilarity = (vecA, vecB) => {
+    let dot = 0, magA = 0, magB = 0;
+    for (let i = 0; i < vecA.length; i++) {
+        dot += vecA[i] * vecB[i];
+        magA += vecA[i] * vecA[i];
+        magB += vecB[i] * vecB[i];
+    }
+    magA = Math.sqrt(magA);
+    magB = Math.sqrt(magB);
+    return (!magA || !magB) ? 0 : dot / (magA * magB);
+};
 
+// ============================================
+// Store Embeddings in ChromaDB (with Graceful Fallback)
+// ============================================
+
+export const storeEmbeddings = async (chunks, embeddings, userId, docId) => {
     if (!chunks || chunks.length === 0) {
         console.warn("storeEmbeddings: No chunks to store.");
         return;
     }
 
-    const collection = await getOrCreateCollection(userId, docId);
+    // Always cache in isolated memory space
+    const cacheKey = `${userId}_${docId}`;
+    memoryFallback.set(cacheKey, { chunks, embeddings });
 
-    // ----------------------------------------
-    // Check if already embedded — avoid duplicates
-    // ----------------------------------------
+    try {
+        const collection = await getOrCreateCollection(userId, docId);
 
-    const existing = await collection.count();
+        const existing = await collection.count();
+        if (existing > 0) {
+            console.log(`ChromaDB: Collection already has ${existing} docs — skipping re-embed.`);
+            return;
+        }
 
-    if (existing > 0) {
-        console.log(`ChromaDB: Collection already has ${existing} docs — skipping re-embed.`);
-        return;
+        const ids = chunks.map((_, i) => `chunk_${i + 1}`);
+        const documents = chunks;
+        const embeddingVectors = embeddings;
+        const metadatas = chunks.map((_, i) => ({
+            chunkIndex: i,
+            userId,
+            docId,
+        }));
+
+        await collection.add({
+            ids,
+            documents,
+            embeddings: embeddingVectors,
+            metadatas,
+        });
+
+        console.log(`✅ ChromaDB: Stored ${chunks.length} embeddings for user=${userId} doc=${docId}`);
+    } catch (error) {
+        console.warn(`⚠️ ChromaDB server offline/unreachable (${error.message}). Gracefully using isolated in-memory vector cache.`);
     }
-
-    // ----------------------------------------
-    // Build ChromaDB-compatible payload
-    // ----------------------------------------
-
-    const ids         = chunks.map((_, i) => `chunk_${i + 1}`);
-    const documents   = chunks;
-    const embeddingVectors = embeddings;
-    const metadatas   = chunks.map((_, i) => ({
-        chunkIndex: i,
-        userId,
-        docId,
-    }));
-
-    await collection.add({
-        ids,
-        documents,
-        embeddings: embeddingVectors,
-        metadatas,
-    });
-
-    console.log(`✅ ChromaDB: Stored ${chunks.length} embeddings for user=${userId} doc=${docId}`);
-
 };
 
 // ============================================
-// Search Relevant Chunks from ChromaDB
+// Search Relevant Chunks (ChromaDB + Fallback)
 // ============================================
 
-/**
- * Query ChromaDB for the top-K most similar chunks to the query embedding.
- * Only searches within the user+doc scoped collection.
- *
- * @param {number[]} queryEmbedding - Embedding vector of the question
- * @param {number}   topK           - Number of results to return
- * @param {string}   userId         - Authenticated user's MongoDB _id
- * @param {string}   docId          - Analysis document _id
- * @returns {Promise<Array<{id, text, score}>>}
- */
 export const searchRelevantChunks = async (
     queryEmbedding,
     topK = 5,
     userId,
     docId
 ) => {
+    // 1. Try ChromaDB first
+    try {
+        const collection = await getOrCreateCollection(userId, docId);
+        const count = await collection.count();
 
-    const collection = await getOrCreateCollection(userId, docId);
+        if (count > 0) {
+            const results = await collection.query({
+                queryEmbeddings: [queryEmbedding],
+                nResults: Math.min(topK, count),
+                include: ["documents", "distances", "metadatas"],
+            });
 
-    const count = await collection.count();
+            if (results?.documents?.[0]?.length > 0) {
+                const docs = results.documents[0];
+                const distances = results.distances[0];
+                const ids = results.ids[0];
 
-    if (count === 0) {
-        console.warn("ChromaDB: Collection is empty — no chunks to search.");
+                return docs.map((text, i) => ({
+                    id: ids[i],
+                    text,
+                    score: 1 - distances[i],
+                }));
+            }
+        }
+    } catch (chromaErr) {
+        console.warn(`⚠️ Chroma query failed (${chromaErr.message}). Using memory fallback.`);
+    }
+
+    // 2. Fallback to in-memory search
+    const cacheKey = `${userId}_${docId}`;
+    const cached = memoryFallback.get(cacheKey);
+
+    if (!cached || !cached.chunks || cached.chunks.length === 0) {
         return [];
     }
 
-    const results = await collection.query({
-        queryEmbeddings: [queryEmbedding],
-        nResults: Math.min(topK, count),
-        include: ["documents", "distances", "metadatas"],
-    });
-
-    if (
-        !results ||
-        !results.documents ||
-        !results.documents[0] ||
-        results.documents[0].length === 0
-    ) {
-        return [];
-    }
-
-    // ChromaDB returns distances (lower = more similar).
-    // Convert to similarity score (1 - normalized_distance).
-    const docs      = results.documents[0];
-    const distances = results.distances[0];
-    const ids       = results.ids[0];
-
-    return docs.map((text, i) => ({
-        id:    ids[i],
+    const scores = cached.chunks.map((text, idx) => ({
+        id: `chunk_${idx + 1}`,
         text,
-        score: 1 - distances[i], // cosine distance → similarity
+        score: cosineSimilarity(queryEmbedding, cached.embeddings[idx]),
     }));
 
+    scores.sort((a, b) => b.score - a.score);
+    return scores.slice(0, topK);
 };
 
 // ============================================
-// Get All Chunks for Batch Analysis
+// Get All Chunks (ChromaDB + Fallback)
 // ============================================
 
-/**
- * Retrieve all stored chunks from a user+doc ChromaDB collection.
- * Used during the initial batch analysis step in uploadController.
- *
- * @param {string} userId
- * @param {string} docId
- * @returns {Promise<string[]>}
- */
 export const getAllChunks = async (userId, docId) => {
+    try {
+        const collection = await getOrCreateCollection(userId, docId);
+        const count = await collection.count();
 
-    const collection = await getOrCreateCollection(userId, docId);
+        if (count > 0) {
+            const results = await collection.get({
+                include: ["documents", "metadatas"],
+            });
 
-    const count = await collection.count();
+            const paired = results.documents.map((doc, i) => ({
+                text: doc,
+                index: results.metadatas[i]?.chunkIndex ?? i,
+            }));
 
-    if (count === 0) return [];
+            paired.sort((a, b) => a.index - b.index);
+            return paired.map(p => p.text);
+        }
+    } catch (err) {
+        console.warn(`⚠️ Chroma getAllChunks failed (${err.message}). Using memory fallback.`);
+    }
 
-    const results = await collection.get({
-        include: ["documents", "metadatas"],
-    });
-
-    // Sort by chunkIndex to maintain original document order
-    const paired = results.documents.map((doc, i) => ({
-        text:  doc,
-        index: results.metadatas[i]?.chunkIndex ?? i,
-    }));
-
-    paired.sort((a, b) => a.index - b.index);
-
-    return paired.map(p => p.text);
-
+    const cacheKey = `${userId}_${docId}`;
+    return memoryFallback.get(cacheKey)?.chunks || [];
 };

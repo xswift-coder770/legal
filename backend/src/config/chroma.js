@@ -70,6 +70,10 @@ export const buildCollectionName = (userId, docId) => {
  * @param {string} docId  - Unique document identifier (Analysis _id or timestamp)
  * @returns {Promise<Collection>}
  */
+const noopEmbeddingFunction = {
+    generate: async (texts) => texts.map(() => [])
+};
+
 export const getOrCreateCollection = async (userId, docId) => {
 
     const client = getChromaClient();
@@ -77,6 +81,7 @@ export const getOrCreateCollection = async (userId, docId) => {
 
     const collection = await client.getOrCreateCollection({
         name,
+        embeddingFunction: noopEmbeddingFunction,
         metadata: {
             userId,
             docId,
