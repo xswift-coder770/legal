@@ -72,6 +72,12 @@ const Home = () => {
                     )}
                     <div className="flex gap-3 ml-auto">
                         <button
+                            onClick={() => navigate("/dashboard")}
+                            className="px-5 py-2 rounded-xl border border-purple-500/30 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 transition"
+                        >
+                            📊 Dashboard
+                        </button>
+                        <button
                             onClick={() => navigate("/history")}
                             className="px-5 py-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 transition"
                         >

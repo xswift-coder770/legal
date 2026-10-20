@@ -1,7 +1,7 @@
  
 import { useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { askQuestion } from "../services/api.js";
+import { askQuestion, getHistory } from "../services/api.js";
 import {
     FileText,
     ShieldCheck,
@@ -12,6 +12,7 @@ import {
     ArrowLeft,
     Sparkles,
     History as HistoryIcon,
+    Loader2,
 } from "lucide-react";
 
 const Dashboard = () => {
@@ -20,40 +21,75 @@ const Dashboard = () => {
 
     const navigate = useNavigate();
 
+    const [activeDoc, setActiveDoc] = useState(() => {
+        if (location.state?.analysis) {
+            return {
+                analysis: location.state.analysis,
+                file: location.state.file || { originalName: "Uploaded Document" },
+                docId: location.state.docId || ""
+            };
+        }
+        try {
+            const cachedAnalysis = JSON.parse(localStorage.getItem("activeAnalysis"));
+            const cachedFile = JSON.parse(localStorage.getItem("activeFile"));
+            const cachedDocId = localStorage.getItem("activeDocId");
+            if (cachedAnalysis) {
+                return {
+                    analysis: cachedAnalysis,
+                    file: cachedFile || { originalName: "Uploaded Document" },
+                    docId: cachedDocId || ""
+                };
+            }
+        } catch {
+            return null;
+        }
+        return null;
+    });
+
+    const [loadingDoc, setLoadingDoc] = useState(!activeDoc);
     const [question, setQuestion] = useState("");
     const [answer, setAnswer] = useState("");
     const [isAsking, setIsAsking] = useState(false);
 
-    // Persist active document to localStorage so logout/refresh retains the document
+    // Auto-load latest document from History if none is currently selected (e.g. after fresh login/logout)
     useEffect(() => {
         if (location.state?.analysis) {
-            localStorage.setItem("activeAnalysis", JSON.stringify(location.state.analysis));
-        }
-        if (location.state?.file) {
-            localStorage.setItem("activeFile", JSON.stringify(location.state.file));
-        }
-        if (location.state?.docId) {
-            localStorage.setItem("activeDocId", location.state.docId);
+            const docObj = {
+                analysis: location.state.analysis,
+                file: location.state.file || { originalName: "Uploaded Document" },
+                docId: location.state.docId || ""
+            };
+            setActiveDoc(docObj);
+            localStorage.setItem("activeAnalysis", JSON.stringify(docObj.analysis));
+            localStorage.setItem("activeFile", JSON.stringify(docObj.file));
+            localStorage.setItem("activeDocId", docObj.docId);
+            setLoadingDoc(false);
+        } else if (!activeDoc) {
+            setLoadingDoc(true);
+            getHistory()
+                .then(res => {
+                    const list = Array.isArray(res.history) ? res.history : [];
+                    if (list.length > 0) {
+                        const latest = list[0];
+                        const docObj = {
+                            analysis: latest.analysis,
+                            file: { originalName: latest.fileName },
+                            docId: latest._id
+                        };
+                        setActiveDoc(docObj);
+                        localStorage.setItem("activeAnalysis", JSON.stringify(latest.analysis));
+                        localStorage.setItem("activeFile", JSON.stringify({ originalName: latest.fileName }));
+                        localStorage.setItem("activeDocId", latest._id);
+                    }
+                })
+                .catch(err => console.error("Error auto-loading latest policy:", err))
+                .finally(() => setLoadingDoc(false));
         }
     }, [location.state]);
 
-    const activeDocId = location.state?.docId || localStorage.getItem("activeDocId") || "";
-
-    const data = location.state?.analysis || (() => {
-        try {
-            return JSON.parse(localStorage.getItem("activeAnalysis"));
-        } catch {
-            return null;
-        }
-    })();
-
-    const file = location.state?.file || (() => {
-        try {
-            return JSON.parse(localStorage.getItem("activeFile"));
-        } catch {
-            return null;
-        }
-    })();
+    const data = activeDoc?.analysis;
+    const file = activeDoc?.file;
+    const activeDocId = activeDoc?.docId || "";
 
     const handleAskAI = async () => {
         if (!question.trim()) return;
@@ -70,6 +106,17 @@ const Dashboard = () => {
         }
     };
 
+    if (loadingDoc) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white font-body">
+                <div className="flex flex-col items-center gap-3">
+                    <Loader2 size={36} className="animate-spin text-purple-500" />
+                    <p className="text-slate-400">Loading your legal policy...</p>
+                </div>
+            </div>
+        );
+    }
+
     if (!data) {
 
         return (
@@ -79,26 +126,19 @@ const Dashboard = () => {
                 <div className="text-center max-w-md bg-[#131b2e] border border-white/[0.06] p-8 rounded-2xl">
 
                     <h1 className="text-2xl font-bold mb-2">
-                        No Active Document Selected
+                        No Policies Analyzed Yet
                     </h1>
 
                     <p className="text-slate-400 text-sm mb-6">
-                        Open a previously analyzed policy from History or upload a new one.
+                        Upload a contract, privacy policy, or terms & conditions PDF to get started.
                     </p>
 
                     <div className="flex flex-col sm:flex-row gap-3 justify-center">
                         <button
-                            onClick={() => navigate("/history")}
-                            className="bg-indigo-600 hover:bg-indigo-700 px-5 py-2.5 rounded-xl font-medium transition flex items-center justify-center gap-2"
-                        >
-                            <HistoryIcon size={18} />
-                            Open History
-                        </button>
-                        <button
                             onClick={() => navigate("/")}
-                            className="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-5 py-2.5 rounded-xl font-medium transition"
+                            className="bg-indigo-600 hover:bg-indigo-700 px-6 py-2.5 rounded-xl font-medium transition"
                         >
-                            Upload New PDF
+                            Upload Policy PDF
                         </button>
                     </div>
 
