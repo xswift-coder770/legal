@@ -25,7 +25,12 @@ app.use(helmet());
 app.use(cors({
     origin: (origin, callback) => {
         // Allow requests with no origin (like Postman/curl) or any localhost port
-        if (!origin || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) || origin === process.env.FRONTEND_URL) {
+        if (!origin) return callback(null, true);
+
+        const cleanOrigin = origin.replace(/\/$/, "");
+        const cleanFrontend = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.replace(/\/$/, "") : null;
+
+        if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(cleanOrigin) || cleanOrigin === cleanFrontend) {
             return callback(null, true);
         }
         return callback(new Error("CORS policy does not allow access from this origin."));

@@ -14,7 +14,7 @@ export const getChromaClient = () => {
 
     if (!chromaClient) {
 
-        const rawUrl = process.env.CHROMA_URL || "http://localhost:8000";
+        const rawUrl = process.env.CHROMA_URL || process.env.CHROMA_DB_PATH || "http://localhost:8000";
         try {
             const parsed = new URL(rawUrl);
             chromaClient = new ChromaClient({
