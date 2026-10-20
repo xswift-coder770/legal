@@ -18,15 +18,33 @@ export const getChromaClient = () => {
         if (process.env.CHROMA_API_KEY) {
             let apiKey = process.env.CHROMA_API_KEY.trim();
             // Automatically extract the raw API key if the user pasted the entire code snippet
-            const match = apiKey.match(/ck-[a-zA-Z0-9_-]+/);
-            if (match) {
-                apiKey = match[0];
+            const keyMatch = apiKey.match(/ck-[a-zA-Z0-9_-]+/);
+            if (keyMatch) {
+                apiKey = keyMatch[0];
             }
 
-            const database = process.env.CHROMA_DATABASE || "legal_policy";
-            const tenant = (process.env.CHROMA_TENANT || "").trim().replace(/['"]/g, "") || undefined;
+            // Extract and sanitize database name
+            let database = (process.env.CHROMA_DATABASE || "").trim();
+            const dbMatch = database.match(/database:\s*['"]?([a-zA-Z0-9_-]+)['"]?/);
+            if (dbMatch) {
+                database = dbMatch[1];
+            } else {
+                database = database.replace(/[^a-zA-Z0-9_-]/g, "");
+            }
+            if (!database) {
+                database = "legal_policy";
+            }
 
-            console.log(`☁️ Chroma Cloud client initialized — database: ${database}`);
+            // Extract and sanitize tenant UUID
+            let tenant = (process.env.CHROMA_TENANT || "").trim();
+            const tenantMatch = tenant.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i);
+            if (tenantMatch) {
+                tenant = tenantMatch[0];
+            } else {
+                tenant = tenant.replace(/[^a-zA-Z0-9_-]/g, "") || undefined;
+            }
+
+            console.log(`☁️ Chroma Cloud client initialized — database: ${database}, tenant: ${tenant || "default"}`);
             chromaClient = new CloudClient({
                 apiKey,
                 database,
