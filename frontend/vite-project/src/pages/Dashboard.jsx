@@ -1,6 +1,6 @@
  
 import { useLocation, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { askQuestion } from "../services/api.js";
 import {
     FileText,
@@ -11,6 +11,7 @@ import {
     Users,
     ArrowLeft,
     Sparkles,
+    History as HistoryIcon,
 } from "lucide-react";
 
 const Dashboard = () => {
@@ -23,17 +24,43 @@ const Dashboard = () => {
     const [answer, setAnswer] = useState("");
     const [isAsking, setIsAsking] = useState(false);
 
+    // Persist active document to localStorage so logout/refresh retains the document
+    useEffect(() => {
+        if (location.state?.analysis) {
+            localStorage.setItem("activeAnalysis", JSON.stringify(location.state.analysis));
+        }
+        if (location.state?.file) {
+            localStorage.setItem("activeFile", JSON.stringify(location.state.file));
+        }
+        if (location.state?.docId) {
+            localStorage.setItem("activeDocId", location.state.docId);
+        }
+    }, [location.state]);
+
+    const activeDocId = location.state?.docId || localStorage.getItem("activeDocId") || "";
+
+    const data = location.state?.analysis || (() => {
+        try {
+            return JSON.parse(localStorage.getItem("activeAnalysis"));
+        } catch {
+            return null;
+        }
+    })();
+
+    const file = location.state?.file || (() => {
+        try {
+            return JSON.parse(localStorage.getItem("activeFile"));
+        } catch {
+            return null;
+        }
+    })();
+
     const handleAskAI = async () => {
         if (!question.trim()) return;
         setIsAsking(true);
         setAnswer("");
         try {
-            const docId = location.state?.docId;
-            if (!docId) {
-                setAnswer("Document ID is missing. Please re-upload the document.");
-                return;
-            }
-            const res = await askQuestion(question, docId);
+            const res = await askQuestion(question, activeDocId);
             setAnswer(res.answer || "No response found.");
         } catch (error) {
             console.error("Ask AI Error:", error);
@@ -43,35 +70,37 @@ const Dashboard = () => {
         }
     };
 
-    const data = location.state?.analysis;
-
-    const file = location.state?.file;
-
     if (!data) {
 
         return (
 
-            <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
+            <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white font-body px-4">
 
-                <div className="text-center">
+                <div className="text-center max-w-md bg-[#131b2e] border border-white/[0.06] p-8 rounded-2xl">
 
-                    <h1 className="text-3xl font-bold">
-
-                        No Analysis Found
-
+                    <h1 className="text-2xl font-bold mb-2">
+                        No Active Document Selected
                     </h1>
 
-                    <button
+                    <p className="text-slate-400 text-sm mb-6">
+                        Open a previously analyzed policy from History or upload a new one.
+                    </p>
 
-                        onClick={() => navigate("/")}
-
-                        className="mt-6 bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-xl"
-
-                    >
-
-                        Back To Home
-
-                    </button>
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                        <button
+                            onClick={() => navigate("/history")}
+                            className="bg-indigo-600 hover:bg-indigo-700 px-5 py-2.5 rounded-xl font-medium transition flex items-center justify-center gap-2"
+                        >
+                            <HistoryIcon size={18} />
+                            Open History
+                        </button>
+                        <button
+                            onClick={() => navigate("/")}
+                            className="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-5 py-2.5 rounded-xl font-medium transition"
+                        >
+                            Upload New PDF
+                        </button>
+                    </div>
 
                 </div>
 

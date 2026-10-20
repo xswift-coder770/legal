@@ -1,6 +1,7 @@
 import generateEmbedding from "../services/embeddingService.js";
 import { searchRelevantChunks } from "../services/retriever.js";
 import { askAI } from "../services/groqService.js";
+import Analysis from "../models/Analysis.js";
 
 export const askQuestion = async (req, res) => {
 
@@ -35,15 +36,26 @@ export const askQuestion = async (req, res) => {
 
 
         // =====================================
-        // Validate docId
-        // docId is required so we only search
-        // this user's own document in ChromaDB.
+        // Resolve docId
+        // If docId is provided, query that document.
+        // If missing, automatically resolve to user's latest policy.
         // =====================================
 
-        if (!docId || typeof docId !== "string") {
-            return res.status(400).json({
-                success: false,
-                message: "docId is required to identify which document to query.",
+        let targetDocId = docId;
+
+        if (!targetDocId || typeof targetDocId !== "string" || targetDocId === "undefined") {
+            const latest = await Analysis.findOne({ userId }).sort({ createdAt: -1 });
+            if (latest) {
+                targetDocId = latest._id.toString();
+            }
+        }
+
+        if (!targetDocId) {
+            return res.status(200).json({
+                success: true,
+                question,
+                retrievedChunks: [],
+                answer: "You have not uploaded any legal policies yet. Please upload a PDF first.",
             });
         }
 
@@ -64,7 +76,7 @@ export const askQuestion = async (req, res) => {
             questionEmbedding,
             8,
             userId,
-            docId
+            targetDocId
         );
 
 

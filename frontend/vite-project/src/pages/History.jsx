@@ -216,16 +216,17 @@ setHistory(Array.isArray(res.data.history) ? res.data.history : []);
                                                 <button
                                                     className="p-2 rounded-lg bg-blue-600 hover:bg-blue-700 transition"
                                                     title="Open Analysis"
-                                                   onClick={() =>
-    navigate("/dashboard", {
-        state: {
-            analysis: item.analysis,
-            file: {
-                originalName: item.fileName,
-            },
-        },
-    })
-}
+                                                    onClick={() =>
+                                                        navigate("/dashboard", {
+                                                            state: {
+                                                                analysis: item.analysis,
+                                                                docId: item._id,
+                                                                file: {
+                                                                    originalName: item.fileName,
+                                                                },
+                                                            },
+                                                        })
+                                                    }
                                                 >
                                                     <Eye size={18} />
                                                 </button>
