@@ -16,12 +16,21 @@ export const getChromaClient = () => {
     if (!chromaClient) {
 
         if (process.env.CHROMA_API_KEY) {
+            let apiKey = process.env.CHROMA_API_KEY.trim();
+            // Automatically extract the raw API key if the user pasted the entire code snippet
+            const match = apiKey.match(/ck-[a-zA-Z0-9_-]+/);
+            if (match) {
+                apiKey = match[0];
+            }
+
             const database = process.env.CHROMA_DATABASE || "legal_policy";
+            const tenant = (process.env.CHROMA_TENANT || "").trim().replace(/['"]/g, "") || undefined;
+
             console.log(`☁️ Chroma Cloud client initialized — database: ${database}`);
             chromaClient = new CloudClient({
-                apiKey: process.env.CHROMA_API_KEY,
+                apiKey,
                 database,
-                tenant: process.env.CHROMA_TENANT || undefined,
+                tenant,
             });
         } else {
             const rawUrl = process.env.CHROMA_URL || process.env.CHROMA_DB_PATH || "http://localhost:8000";
