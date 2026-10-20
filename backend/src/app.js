@@ -24,16 +24,23 @@ app.use(helmet());
 
 app.use(cors({
     origin: (origin, callback) => {
-        // Allow requests with no origin (like Postman/curl) or any localhost port
+        // Allow requests with no origin (like mobile apps, curl, server-to-server)
         if (!origin) return callback(null, true);
 
         const cleanOrigin = origin.replace(/\/$/, "");
         const cleanFrontend = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.replace(/\/$/, "") : null;
 
-        if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(cleanOrigin) || cleanOrigin === cleanFrontend) {
+        // Allow localhost, configured FRONTEND_URL, and ANY *.vercel.app domain (production + previews)
+        const isLocalhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(cleanOrigin);
+        const isExactMatch = cleanFrontend && cleanOrigin === cleanFrontend;
+        const isVercelDomain = /^https:\/\/[a-zA-Z0-9_.-]+\.vercel\.app$/.test(cleanOrigin);
+
+        if (isLocalhost || isExactMatch || isVercelDomain) {
             return callback(null, true);
         }
-        return callback(new Error("CORS policy does not allow access from this origin."));
+
+        console.warn(`Blocked by CORS origin: ${origin}`);
+        return callback(null, false);
     },
     credentials: true,
 }));
