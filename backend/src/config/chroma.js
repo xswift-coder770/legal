@@ -1,4 +1,4 @@
-import { ChromaClient } from "chromadb";
+import { ChromaClient, CloudClient } from "chromadb";
 
 // ============================================
 // ChromaDB Client — Singleton
@@ -8,25 +8,36 @@ let chromaClient = null;
 
 /**
  * Get or create the singleton ChromaDB client.
- * Connects to the ChromaDB server at CHROMA_URL (default: http://localhost:8000).
+ * Automatically uses CloudClient when CHROMA_API_KEY is provided,
+ * otherwise connects to local Chroma server (default: http://localhost:8000).
  */
 export const getChromaClient = () => {
 
     if (!chromaClient) {
 
-        const rawUrl = process.env.CHROMA_URL || process.env.CHROMA_DB_PATH || "http://localhost:8000";
-        try {
-            const parsed = new URL(rawUrl);
-            chromaClient = new ChromaClient({
-                host: parsed.hostname || "localhost",
-                port: parseInt(parsed.port || "8000", 10),
-                ssl: parsed.protocol === "https:",
+        if (process.env.CHROMA_API_KEY) {
+            const database = process.env.CHROMA_DATABASE || "legal_policy";
+            console.log(`☁️ Chroma Cloud client initialized — database: ${database}`);
+            chromaClient = new CloudClient({
+                apiKey: process.env.CHROMA_API_KEY,
+                database,
+                tenant: process.env.CHROMA_TENANT || undefined,
             });
-        } catch {
-            chromaClient = new ChromaClient({ path: rawUrl });
-        }
+        } else {
+            const rawUrl = process.env.CHROMA_URL || process.env.CHROMA_DB_PATH || "http://localhost:8000";
+            try {
+                const parsed = new URL(rawUrl);
+                chromaClient = new ChromaClient({
+                    host: parsed.hostname || "localhost",
+                    port: parseInt(parsed.port || "8000", 10),
+                    ssl: parsed.protocol === "https:",
+                });
+            } catch {
+                chromaClient = new ChromaClient({ path: rawUrl });
+            }
 
-        console.log(`✅ ChromaDB client initialized — ${rawUrl}`);
+            console.log(`✅ ChromaDB client initialized — ${rawUrl}`);
+        }
 
     }
 
