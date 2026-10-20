@@ -128,7 +128,7 @@ export const uploadPDF = async (req, res) => {
 
         const embeddings = await limitConcurrency(
             chunks,
-            10,
+            2,
             async (chunk) => await generateEmbedding(chunk)
         );
 
