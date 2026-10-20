@@ -1,40 +1,42 @@
+# Node Modules (root and all subdirectories)
+node_modules/
+**/node_modules/
+
+# Environment and Secret Files
+.env
+**/.env
+.env.*
+**/.env.*
+!.env.example
+!**/.env.example
+
+# ChromaDB Persistent Storage
+chroma_data/
+**/chroma_data/
+
+# Uploads directory
+src/uploads/
+**/src/uploads/
+backend/src/uploads/
+
+# Build outputs
+dist/
+**/dist/
+build/
+**/build/
+dist-ssr/
+*.local
+
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+# Editor & System Files
+.vscode/
+.idea/
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-
-# Dependencies
-node_modules/
-
-# Environment files
-.env
-**/.env
-.env.*
-**/.env.*
-
-# Build
-dist/
-build/
-
-backend/src/uploads/
+Thumbs.db

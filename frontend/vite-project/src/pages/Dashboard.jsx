@@ -28,7 +28,12 @@ const Dashboard = () => {
         setIsAsking(true);
         setAnswer("");
         try {
-            const res = await askQuestion(question);
+            const docId = location.state?.docId;
+            if (!docId) {
+                setAnswer("Document ID is missing. Please re-upload the document.");
+                return;
+            }
+            const res = await askQuestion(question, docId);
             setAnswer(res.answer || "No response found.");
         } catch (error) {
             console.error("Ask AI Error:", error);

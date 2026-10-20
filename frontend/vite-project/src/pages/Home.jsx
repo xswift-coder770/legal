@@ -8,6 +8,17 @@ import { ShieldCheck, Zap, FileSearch, Scale, FileText } from "lucide-react";
 const Home = () => {
     const navigate = useNavigate();
 
+    const handleLogout = () => {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        navigate("/login");
+    };
+
+    const user = (() => {
+        try { return JSON.parse(localStorage.getItem("user")); }
+        catch { return null; }
+    })();
+
     const [analysisData, setAnalysisData] = useState(null);
     const [mounted, setMounted] = useState(false);
 
@@ -52,14 +63,27 @@ const Home = () => {
             </div>
 
             <div className="max-w-5xl mx-auto px-6 py-16 relative font-body">
-                {/* History button (top right) */}
-                <div className="flex justify-end mb-6">
-                    <button
-                        onClick={() => navigate("/history")}
-                        className="px-5 py-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 transition"
-                    >
-                        📜 History
-                    </button>
+                {/* Top nav */}
+                <div className="flex justify-between items-center mb-6">
+                    {user && (
+                        <span className="text-sm text-slate-400">
+                            👋 {user.name}
+                        </span>
+                    )}
+                    <div className="flex gap-3 ml-auto">
+                        <button
+                            onClick={() => navigate("/history")}
+                            className="px-5 py-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 transition"
+                        >
+                            📜 History
+                        </button>
+                        <button
+                            onClick={handleLogout}
+                            className="px-5 py-2 rounded-xl border border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20 transition"
+                        >
+                            🚪 Logout
+                        </button>
+                    </div>
                 </div>
 
                 {/* Eyebrow */}
@@ -213,6 +237,7 @@ const Home = () => {
                                             navigate("/dashboard", {
                                                 state: {
                                                     analysis: analysisData.analysis,
+                                                    docId: analysisData.docId,
                                                     file: {
                                                         originalName:
                                                             analysisData.file?.originalName ||

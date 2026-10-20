@@ -1,39 +1,66 @@
 import express from "express";
 import cors from "cors";
- 
 import helmet from "helmet";
 import morgan from "morgan";
 
+import authRoutes    from "./routes/authRoutes.js";
 import analyzeRoutes from "./routes/analyzeRoutes.js";
-import uploadRoutes from "./routes/uploadRoutes.js";
-import chatRoutes from "./routes/chatRoutes.js";
+import uploadRoutes  from "./routes/uploadRoutes.js";
+import chatRoutes    from "./routes/chatRoutes.js";
 import historyRoutes from "./routes/historyRoutes.js";
 
 
- 
-
 const app = express();
 
-app.use(cors());
+// ============================================
+// Security Headers
+// ============================================
 
 app.use(helmet());
 
+// ============================================
+// CORS
+// ============================================
+
+app.use(cors({
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like Postman/curl) or any localhost port
+        if (!origin || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) || origin === process.env.FRONTEND_URL) {
+            return callback(null, true);
+        }
+        return callback(new Error("CORS policy does not allow access from this origin."));
+    },
+    credentials: true,
+}));
+
+// ============================================
+// Logging
+// ============================================
+
 app.use(morgan("dev"));
 
-app.use(express.json());
-app.use("/api/chat", chatRoutes);
+// ============================================
+// Body Parsers
+// ============================================
 
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "10kb" }));         // limit JSON body size
+app.use(express.urlencoded({ extended: true, limit: "10kb" }));
+
+// ============================================
+// Routes
+// ============================================
 
 app.get("/", (req, res) => {
     res.json({
         success: true,
-        message: "LegalMind AI Backend Running"
+        message: "LegalMind AI Backend Running",
     });
 });
 
+app.use("/api/auth",    authRoutes);
 app.use("/api/analyze", analyzeRoutes);
-app.use("/api/upload", uploadRoutes);
+app.use("/api/upload",  uploadRoutes);
+app.use("/api/chat",    chatRoutes);
 app.use("/api/history", historyRoutes);
 
 export default app;
